@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三毛咖啡 · 訂位系統</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%98%95</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+<style>
+  html,body{height:100%;margin:0;background:#EBE0CE;}
+  #root{min-height:100%;}
+  .boot{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+    color:#7A6553;text-align:center;padding:60px 20px;font-size:14px;}
+</style>
+</head>
+<body>
+<div id="root"><div class="boot">載入中…</div></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useCallback } = React;
+
+/* ============================================================
+   三毛咖啡 — 餐廳訂位系統
+   前台:顧客訂位  /  後台:訂位管理 + 營運設定 + 員工帳號
+   後端:Google Apps Script + Google Sheets(多人共用)
+   ------------------------------------------------------------
+   ★ 部署後,把下方 API_URL 換成你的 Web App 網址即可。
+     未設定時為本機預覽模式(預設帳號 admin / 密碼 admin1234)。
+   ============================================================ */
+
+/* ====== 後端設定(部署後只改這一行) ====== */
+const API_URL = "https://script.google.com/macros/s/AKfycbyCtHhzGEI0vRkJdMA0uA5dEtj8f7vIP5j7dgW9kK2k4mwHr7S8FxEnhsIJsJgtRw_K/exec";
+const API_READY = /^https:\/\/script\.google\.com\/.+/.test(API_URL);
+
+/* ====== 三毛咖啡火焰標誌 ====== */
+const LOGO = "data:image/png;base64,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";
+
+/* ---------- 樣式 ---------- */
+const CSS = `
+.sm-app *{box-sizing:border-box;margin:0;padding:0;}
+.sm-app{
+  --bg:#EBE0CE; --surface:#FBF6EC; --surface-2:#F3EADb;
+  --ink:#3A2A1C; --ink-soft:#7A6553;
+  --coffee:#6B4226; --coffee-2:#8C6A4E;
+  --accent:#C2703D; --sage:#6F8157; --danger:#B0453A; --gold:#C99A3E;
+  --border:#DCCDB4; --border-strong:#C9B595;
+  --radius:16px; --shadow:0 6px 22px -10px rgba(74,48,24,.35);
+  font-family:'Noto Sans TC',-apple-system,'PingFang TC','Microsoft JhengHei',sans-serif;
+  color:var(--ink); background:var(--bg);
+  min-height:100%; padding:20px 16px 60px; line-height:1.6;
+}
+.sm-app h1,.sm-app h2,.sm-app h3{font-family:'Zen Maru Gothic','Noto Sans TC',sans-serif;font-weight:700;line-height:1.3;}
+.sm-wrap{max-width:940px;margin:0 auto;}
+
+/* header */
+.sm-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+.sm-logo{flex-shrink:0;display:flex;align-items:center;}
+.sm-logo img{height:52px;width:auto;display:block;}
+.sm-sysname{font-family:'Zen Maru Gothic','Noto Sans TC',sans-serif;font-weight:700;
+  font-size:16px;color:var(--ink-soft);padding-left:14px;
+  border-left:2px solid var(--border-strong);letter-spacing:1px;}
+.sm-toggle{margin-left:auto;display:flex;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:999px;padding:4px;gap:2px;}
+.sm-toggle button{
+  border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700;
+  color:var(--ink-soft);padding:8px 18px;border-radius:999px;transition:.18s;
+}
+.sm-toggle button.on{background:var(--coffee);color:#fff;box-shadow:0 3px 10px -4px rgba(0,0,0,.4);}
+
+/* sync bar */
+.sm-syncbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;
+  color:var(--ink-soft);margin-bottom:14px;padding:7px 13px;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:10px;}
+.sm-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sm-dot.idle{background:var(--sage);}
+.sm-dot.saving{background:var(--gold);animation:smpulse 1s infinite;}
+.sm-dot.error{background:var(--danger);}
+.sm-dot.local{background:var(--coffee-2);}
+@keyframes smpulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.sm-sync-refresh{margin-left:auto;border:1px solid var(--border-strong);background:var(--surface);
+  color:var(--coffee);font-family:inherit;font-weight:700;font-size:11.5px;padding:5px 11px;
+  border-radius:8px;cursor:pointer;}
+.sm-sync-refresh:hover{background:var(--surface-2);}
+.sm-sync-refresh:disabled{opacity:.5;cursor:not-allowed;}
+
+/* staff bar */
+.sm-staffbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;
+  padding:9px 14px;background:var(--coffee);color:#fff;border-radius:11px;font-size:13px;}
+.sm-staffbar .who{font-weight:700;display:flex;align-items:center;gap:7px;}
+.sm-staffbar .role{font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:999px;font-weight:700;}
+.sm-staffbar .acts{margin-left:auto;display:flex;gap:7px;}
+.sm-staffbar button{border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);
+  color:#fff;font-family:inherit;font-weight:700;font-size:12px;padding:5px 12px;
+  border-radius:8px;cursor:pointer;transition:.15s;}
+.sm-staffbar button:hover{background:rgba(255,255,255,.22);}
+
+/* cards / panels */
+.sm-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:22px;}
+.sm-card+.sm-card{margin-top:16px;}
+.sm-sec-title{font-size:16px;margin-bottom:4px;display:flex;align-items:center;gap:8px;}
+.sm-sec-sub{font-size:12.5px;color:var(--ink-soft);margin-bottom:18px;}
+.sm-bar{height:1px;background:var(--border);margin:18px 0;}
+
+/* form */
+.sm-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.sm-field{display:flex;flex-direction:column;gap:6px;}
+.sm-field.full{grid-column:1/-1;}
+.sm-label{font-size:13px;font-weight:700;color:var(--coffee);display:flex;gap:5px;align-items:center;}
+.sm-req{color:var(--danger);font-size:12px;}
+.sm-opt{color:var(--ink-soft);font-weight:500;font-size:11.5px;}
+.sm-input,.sm-select,.sm-textarea{
+  font-family:inherit;font-size:14px;color:var(--ink);background:#fff;
+  border:1.5px solid var(--border-strong);border-radius:10px;padding:10px 12px;width:100%;transition:.15s;
+}
+.sm-input:focus,.sm-select:focus,.sm-textarea:focus{outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(194,112,61,.15);}
+.sm-input:disabled{background:var(--surface-2);color:var(--ink-soft);}
+.sm-textarea{resize:vertical;min-height:64px;}
+.sm-err-input{border-color:var(--danger)!important;}
+.sm-err{color:var(--danger);font-size:12px;font-weight:600;}
+
+/* stepper */
+.sm-stepper{display:flex;align-items:center;border:1.5px solid var(--border-strong);
+  border-radius:10px;overflow:hidden;width:fit-content;background:#fff;}
+.sm-stepper button{width:38px;height:40px;border:none;background:var(--surface-2);cursor:pointer;
+  font-size:18px;color:var(--coffee);font-weight:700;transition:.15s;}
+.sm-stepper button:hover{background:var(--accent);color:#fff;}
+.sm-stepper button:disabled{opacity:.35;cursor:not-allowed;background:var(--surface-2);color:var(--coffee);}
+.sm-stepper span{min-width:46px;text-align:center;font-weight:700;font-size:15px;}
+
+/* buttons */
+.sm-btn{font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;border-radius:11px;
+  padding:11px 20px;border:1.5px solid transparent;transition:.16s;display:inline-flex;
+  align-items:center;gap:7px;justify-content:center;}
+.sm-btn:active{transform:translateY(1px);}
+.sm-btn-primary{background:var(--coffee);color:#fff;}
+.sm-btn-primary:hover{background:#56341d;}
+.sm-btn-accent{background:var(--accent);color:#fff;}
+.sm-btn-accent:hover{background:#a85d2f;}
+.sm-btn-ghost{background:transparent;color:var(--coffee);border-color:var(--border-strong);}
+.sm-btn-ghost:hover{background:var(--surface-2);}
+.sm-btn-danger{background:transparent;color:var(--danger);border-color:#E0B5AF;}
+.sm-btn-danger:hover{background:var(--danger);color:#fff;}
+.sm-btn-sm{padding:7px 13px;font-size:12.5px;border-radius:9px;}
+.sm-btn-block{width:100%;}
+.sm-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+/* badges */
+.sm-badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;
+  display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+.sm-badge-coffee{background:#EADCC6;color:var(--coffee);}
+.sm-badge-sage{background:#DEE6CF;color:var(--sage);}
+.sm-badge-accent{background:#F1DBC8;color:var(--accent);}
+.sm-badge-gold{background:#F0E2C0;color:#9c7420;}
+.sm-badge-danger{background:#EFD3CF;color:var(--danger);}
+.sm-badge-gray{background:#E4DCCC;color:var(--ink-soft);}
+
+/* back office */
+.sm-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.sm-tab{border:1.5px solid var(--border-strong);background:var(--surface);color:var(--ink-soft);
+  font-family:inherit;font-weight:700;font-size:13.5px;padding:8px 16px;border-radius:10px;cursor:pointer;transition:.15s;}
+.sm-tab.on{background:var(--coffee);color:#fff;border-color:var(--coffee);}
+.sm-filters{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+.sm-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.sm-stat{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
+  padding:10px 16px;min-width:96px;}
+.sm-stat b{font-family:'Zen Maru Gothic',sans-serif;font-size:22px;color:var(--coffee);display:block;line-height:1.2;}
+.sm-stat span{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+
+.sm-res{border:1.5px solid var(--border);border-radius:13px;padding:15px;background:var(--surface);}
+.sm-res+.sm-res{margin-top:11px;}
+.sm-res.cancelled{opacity:.62;background:var(--surface-2);}
+.sm-res-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+.sm-res-time{font-family:'Zen Maru Gothic',sans-serif;font-weight:700;font-size:19px;color:var(--coffee);}
+.sm-res-name{font-weight:700;font-size:15.5px;}
+.sm-res-date{font-size:12.5px;color:var(--ink-soft);}
+.sm-res-info{font-size:13px;color:var(--ink-soft);display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px;}
+.sm-res-info b{color:var(--ink);font-weight:600;}
+.sm-res-note{font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:7px 10px;
+  margin-top:7px;color:var(--ink);}
+.sm-res-note .lbl{color:var(--ink-soft);font-weight:700;margin-right:5px;}
+.sm-res-edit{font-size:11px;color:var(--ink-soft);margin-top:8px;font-style:italic;}
+.sm-res-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:11px;
+  padding-top:11px;border-top:1px dashed var(--border-strong);}
+.sm-table-pick{display:flex;align-items:center;gap:6px;}
+.sm-table-pick .sm-select{padding:6px 8px;font-size:12.5px;width:auto;}
+.sm-hint{font-size:11.5px;color:var(--ink-soft);}
+.sm-mini-note{font-size:11.5px;color:var(--danger);font-weight:600;}
+
+/* table grid */
+.sm-tgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;margin-top:6px;}
+.sm-tcell{aspect-ratio:1;border-radius:9px;display:grid;place-items:center;font-weight:700;
+  font-size:13px;border:1.5px solid var(--border-strong);background:#fff;color:var(--ink-soft);}
+.sm-tcell.busy{background:var(--coffee);color:#fff;border-color:var(--coffee);}
+
+/* chips list */
+.sm-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.sm-chip{background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;
+  padding:5px 10px 5px 13px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px;}
+.sm-chip button{border:none;background:#D8C4A4;color:var(--coffee);width:18px;height:18px;
+  border-radius:50%;cursor:pointer;font-size:12px;line-height:1;display:grid;place-items:center;}
+.sm-chip button:hover{background:var(--danger);color:#fff;}
+.sm-weekdays{display:flex;gap:6px;flex-wrap:wrap;}
+.sm-wd{width:42px;height:42px;border-radius:10px;border:1.5px solid var(--border-strong);
+  background:#fff;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px;color:var(--ink-soft);transition:.15s;}
+.sm-wd.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+/* staff list */
+.sm-staff-row{display:flex;align-items:center;gap:11px;flex-wrap:wrap;
+  border:1.5px solid var(--border);border-radius:12px;padding:12px 15px;background:var(--surface);}
+.sm-staff-row+.sm-staff-row{margin-top:9px;}
+.sm-staff-row.off{opacity:.55;}
+.sm-staff-name{font-weight:700;font-size:14.5px;}
+.sm-staff-user{font-size:12px;color:var(--ink-soft);}
+.sm-staff-row .acts{margin-left:auto;display:flex;gap:6px;}
+
+/* modal */
+.sm-overlay{position:fixed;inset:0;background:rgba(45,30,18,.55);display:grid;place-items:center;
+  padding:20px;z-index:50;backdrop-filter:blur(2px);}
+.sm-modal{background:var(--surface);border-radius:var(--radius);max-width:560px;width:100%;
+  max-height:88vh;overflow:auto;box-shadow:0 20px 50px -12px rgba(0,0,0,.5);}
+.sm-modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;
+  border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);}
+.sm-modal-head h3{font-size:17px;}
+.sm-modal-body{padding:22px;}
+.sm-x{border:none;background:var(--surface-2);width:32px;height:32px;border-radius:9px;cursor:pointer;
+  font-size:16px;color:var(--ink-soft);}
+.sm-x:hover{background:var(--danger);color:#fff;}
+
+/* login */
+.sm-login{max-width:380px;margin:5vh auto 0;}
+.sm-login-logo{text-align:center;margin-bottom:12px;}
+.sm-login-logo img{height:58px;width:auto;}
+.sm-login h2{text-align:center;font-size:19px;margin-bottom:3px;}
+.sm-login .sub{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-bottom:20px;}
+
+/* success */
+.sm-success{text-align:center;padding:14px 6px;}
+.sm-success .ic{width:66px;height:66px;border-radius:50%;background:linear-gradient(150deg,var(--sage),#566640);
+  display:grid;place-items:center;font-size:34px;margin:0 auto 14px;color:#fff;}
+.sm-success h2{font-size:20px;margin-bottom:6px;}
+.sm-success p{color:var(--ink-soft);font-size:13.5px;margin-bottom:4px;}
+.sm-summary{text-align:left;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:12px;padding:16px;margin:18px 0;}
+.sm-summary-row{display:flex;justify-content:space-between;font-size:13.5px;padding:4px 0;}
+.sm-summary-row span{color:var(--ink-soft);}
+.sm-summary-row b{font-weight:600;}
+
+.sm-empty{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+.sm-empty .ic{font-size:40px;margin-bottom:8px;}
+.sm-notice{font-size:12.5px;background:#F1DBC8;border:1px solid #E0B98F;color:#8a4f22;
+  border-radius:10px;padding:9px 13px;margin-bottom:14px;}
+.sm-banner-err{font-size:12.5px;background:#EFD3CF;border:1px solid #D99B92;color:#8a322a;
+  border-radius:10px;padding:9px 13px;margin-bottom:14px;}
+.sm-foot{text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:26px;}
+
+@media(max-width:620px){
+  .sm-grid{grid-template-columns:1fr;}
+  .sm-tgrid{grid-template-columns:repeat(4,1fr);}
+  .sm-toggle{margin-left:0;width:100%;}
+  .sm-toggle button{flex:1;}
+}
+`;
+
+/* ============================================================
+   資料層 — 後端 API 模式 / 本機預覽模式 自動切換
+   ============================================================ */
+async function apiGet(token) {
+  const url = token ? API_URL + "?token=" + encodeURIComponent(token) : API_URL;
+  const res = await fetch(url, { method: "GET" });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "讀取失敗");
+  return data;
+}
+async function apiCall(action, payload) {
+  // 用 text/plain 傳送,避免觸發 CORS 預檢
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(Object.assign({ action: action }, payload)),
+  });
+  return res.json();
+}
+
+/* ---- 本機儲存(預覽模式)---- */
+const mem = {};
+const hasStore = typeof window !== "undefined" && window.storage;
+async function loadKey(key, fallback) {
+  try {
+    if (hasStore) {
+      const r = await window.storage.get(key);
+      if (r && r.value != null) return JSON.parse(r.value);
+    }
+  } catch (e) {/* 不存在 */}
+  return key in mem ? mem[key] : fallback;
+}
+async function saveKey(key, value) {
+  mem[key] = value;
+  try { if (hasStore) await window.storage.set(key, JSON.stringify(value)); }
+  catch (e) { console.error("儲存失敗", e); }
+}
+const K_RES = "sanmao_reservations";
+const K_SET = "sanmao_settings";
+
+/* ---- 本機預覽模式的員工帳號 ---- */
+let localStaff = [
+  { username: "admin", password: "admin1234", displayName: "店長", role: "manager", active: true },
+];
+
+/* ---- 登入狀態的安全儲存(localStorage,失敗則記憶體) ---- */
+const sessMem = {};
+const sessionStore = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return sessMem[k] || null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { sessMem[k] = v; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { delete sessMem[k]; } },
+};
+const K_SESSION = "sanmao_session";
+
+/* ---- 統一資料層 ---- */
+const dataLayer = {
+  mode: API_READY ? "api" : "local",
+
+  // 公開讀取:只回傳營運設定(供前台訂位表單用)
+  async loadPublic() {
+    if (API_READY) {
+      const d = await apiGet();
+      return { settings: mergeSettings(d.settings) };
+    }
+    const s = await loadKey(K_SET, null);
+    return { settings: mergeSettings(s) };
+  },
+  // 登入後讀取:回傳訂位 + 設定
+  async loadSecure(token) {
+    if (API_READY) {
+      const d = await apiGet(token);
+      if (!d.reservations) throw new Error("登入已逾期,請重新登入");
+      return { reservations: d.reservations, settings: mergeSettings(d.settings), staff: d.staff };
+    }
+    const r = await loadKey(K_RES, []);
+    const s = await loadKey(K_SET, null);
+    return { reservations: r, settings: mergeSettings(s) };
+  },
+  async login(username, password) {
+    if (API_READY) {
+      const d = await apiCall("login", { username: username, password: password });
+      if (!d.ok) throw new Error(d.error || "登入失敗");
+      return { staff: d.staff, token: d.token };
+    }
+    const u = String(username).trim().toLowerCase();
+    const s = localStaff.find((x) => x.username.toLowerCase() === u && x.active);
+    if (!s || s.password !== password) throw new Error("帳號或密碼錯誤");
+    return {
+      staff: { username: s.username, displayName: s.displayName, role: s.role },
+      token: "LOCAL:" + s.username,
+    };
+  },
+  async addReservation(rec, token, nextList) {
+    if (API_READY) {
+      const d = await apiCall("add", { reservation: rec, token: token || "" });
+      if (!d.ok) throw new Error(d.error || "新增失敗");
+      return;
+    }
+    await saveKey(K_RES, nextList);
+  },
+  async updateReservation(rec, token, nextList) {
+    if (API_READY) {
+      const d = await apiCall("update", { reservation: rec, token: token });
+      if (!d.ok) throw new Error(d.error || "更新失敗");
+      return;
+    }
+    await saveKey(K_RES, nextList);
+  },
+  async saveSettings(settings, token) {
+    if (API_READY) {
+      const d = await apiCall("updateSettings", { settings: settings, token: token });
+      if (!d.ok) throw new Error(d.error || "設定儲存失敗");
+      return;
+    }
+    await saveKey(K_SET, settings);
+  },
+  async listStaff(token) {
+    if (API_READY) {
+      const d = await apiCall("listStaff", { token: token });
+      if (!d.ok) throw new Error(d.error || "讀取員工帳號失敗");
+      return d.staff;
+    }
+    return localStaff.map((s) => ({
+      username: s.username, displayName: s.displayName, role: s.role, active: s.active,
+    }));
+  },
+  async saveStaff(staffObj, token) {
+    if (API_READY) {
+      const d = await apiCall("saveStaff", { staff: staffObj, token: token });
+      if (!d.ok) throw new Error(d.error || "儲存失敗");
+      return;
+    }
+    const u = String(staffObj.username).trim().toLowerCase();
+    const s = localStaff.find((x) => x.username.toLowerCase() === u);
+    if (s) {
+      s.displayName = staffObj.displayName || s.displayName;
+      s.role = staffObj.role === "manager" ? "manager" : "staff";
+      s.active = staffObj.active === false ? false : true;
+      if (staffObj.password) s.password = staffObj.password;
+    } else {
+      if (!staffObj.password) throw new Error("新帳號請設定密碼");
+      localStaff.push({
+        username: u, displayName: staffObj.displayName || u,
+        role: staffObj.role === "manager" ? "manager" : "staff",
+        active: true, password: staffObj.password,
+      });
+    }
+  },
+  async changePassword(token, oldPassword, newPassword) {
+    if (API_READY) {
+      const d = await apiCall("changePassword", {
+        token: token, oldPassword: oldPassword, newPassword: newPassword,
+      });
+      if (!d.ok) throw new Error(d.error || "密碼變更失敗");
+      return d.token;
+    }
+    const username = token.split(":")[1];
+    const s = localStaff.find((x) => x.username === username);
+    if (!s || s.password !== oldPassword) throw new Error("目前密碼錯誤");
+    s.password = newPassword;
+    return token;
+  },
+};
+
+/* ---------- 預設設定與工具 ---------- */
+const DEFAULT_SETTINGS = {
+  businessHours: { open: "11:00", close: "21:00", slotMinutes: 30, lastBeforeClose: 60 },
+  closedDates: [],
+  weeklyClosedDays: [],
+};
+function mergeSettings(s) {
+  s = s || {};
+  return {
+    businessHours: Object.assign({}, DEFAULT_SETTINGS.businessHours, s.businessHours || {}),
+    closedDates: Array.isArray(s.closedDates) ? s.closedDates : [],
+    weeklyClosedDays: Array.isArray(s.weeklyClosedDays) ? s.weeklyClosedDays : [],
+  };
+}
+const WD = ["日", "一", "二", "三", "四", "五", "六"];
+const TABLES = Array.from({ length: 16 }, (_, i) => i + 1);
+
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const fromMin = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const dowOf = (dateStr) => new Date(dateStr + "T00:00:00").getDay();
+const fmtDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getMonth() + 1}/${d.getDate()}（${WD[d.getDay()]}）`;
+};
+const shortTime = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+function genSlots(bh) {
+  const start = toMin(bh.open);
+  const end = toMin(bh.close) - (bh.lastBeforeClose || 0);
+  const step = bh.slotMinutes || 30;
+  const out = [];
+  for (let m = start; m <= end; m += step) out.push(fromMin(m));
+  return out;
+}
+function dateClosed(dateStr, settings) {
+  if (!dateStr) return false;
+  if (settings.closedDates.includes(dateStr)) return true;
+  if (settings.weeklyClosedDays.includes(dowOf(dateStr))) return true;
+  return false;
+}
+const newId = () => "R" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/* ---------- 小元件 ---------- */
+function Stepper({ value, onChange, min = 0, max = 99 }) {
+  return (
+    <div className="sm-stepper">
+      <button type="button" disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+      <span>{value}</span>
+      <button type="button" disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}>＋</button>
+    </div>
+  );
+}
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="sm-overlay" onClick={onClose}>
+      <div className="sm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sm-modal-head">
+          <h3>{title}</h3>
+          <button className="sm-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="sm-modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- 訂位驗證 ---------- */
+function validateBooking(f, settings, { hardClosed }) {
+  const e = {};
+  if (!f.name.trim()) e.name = "請填寫姓名";
+  if (!f.phone.trim()) e.phone = "請填寫電話";
+  else if (!/[0-9]{6,}/.test(f.phone.replace(/[^0-9]/g, ""))) e.phone = "電話格式不正確";
+  if (!f.partySize || f.partySize < 1) e.partySize = "請選擇人數";
+  if (!f.date) e.date = "請選擇日期";
+  else if (f.date < todayStr()) e.date = "不可選擇過去日期";
+  else if (hardClosed && dateClosed(f.date, settings)) e.date = "該日為公休日,無法訂位";
+  if (!f.time) e.time = "請選擇時間";
+  if (f.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email)) e.email = "Email 格式不正確";
+  return e;
+}
+
+/* ============================================================
+   前台 — 顧客訂位
+   ============================================================ */
+function FrontDesk({ settings, onSubmit }) {
+  const blank = {
+    date: "", time: "", name: "", phone: "", partySize: 2,
+    email: "", children: 0, pets: 0, notes: "",
+  };
+  const [f, setF] = useState(blank);
+  const [errs, setErrs] = useState({});
+  const [done, setDone] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitErr, setSubmitErr] = useState("");
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  const slots = useMemo(() => genSlots(settings.businessHours), [settings]);
+  const availableSlots = useMemo(() => {
+    if (f.date === todayStr()) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      return slots.filter((s) => toMin(s) > nowMin);
+    }
+    return slots;
+  }, [slots, f.date]);
+
+  const isClosed = f.date && dateClosed(f.date, settings);
+
+  const submit = async () => {
+    const e = validateBooking(f, settings, { hardClosed: true });
+    setErrs(e);
+    if (Object.keys(e).length) return;
+    const record = {
+      id: newId(), ...f,
+      name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim(), notes: f.notes.trim(),
+      tableNumber: null, staffNotes: "", status: "confirmed",
+      source: "online", createdAt: new Date().toISOString(),
+      lastEditBy: "", lastEditAt: "",
+    };
+    setSubmitting(true);
+    setSubmitErr("");
+    const ok = await onSubmit(record);
+    setSubmitting(false);
+    if (ok) setDone(record);
+    else setSubmitErr("訂位送出失敗,請檢查網路後再試一次,或直接來電訂位。");
+  };
+
+  if (done) {
+    return (
+      <div className="sm-card">
+        <div className="sm-success">
+          <div className="ic">✓</div>
+          <h2>訂位成功!</h2>
+          <p>我們已收到您的訂位資料,期待您的光臨 🐾</p>
+          {done.email && <p>訂位確認信將寄送至 {done.email}</p>}
+          <div className="sm-summary">
+            <div className="sm-summary-row"><span>日期</span><b>{fmtDate(done.date)}</b></div>
+            <div className="sm-summary-row"><span>時間</span><b>{done.time}</b></div>
+            <div className="sm-summary-row"><span>姓名</span><b>{done.name}</b></div>
+            <div className="sm-summary-row"><span>電話</span><b>{done.phone}</b></div>
+            <div className="sm-summary-row"><span>人數</span><b>{done.partySize} 位
+              {done.children > 0 && ` ・ 幼童 ${done.children}`}
+              {done.pets > 0 && ` ・ 寵物 ${done.pets}`}</b></div>
+            {done.notes && <div className="sm-summary-row"><span>備註</span><b>{done.notes}</b></div>}
+          </div>
+          <button className="sm-btn sm-btn-primary" onClick={() => { setF(blank); setDone(null); setErrs({}); }}>
+            再訂一筆
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="sm-card">
+      <h2 className="sm-sec-title">🗓️ 線上訂位</h2>
+      <p className="sm-sec-sub">
+        營業時間 {settings.businessHours.open}–{settings.businessHours.close}　
+        標示 <span className="sm-req">*</span> 為必填欄位
+      </p>
+
+      {submitErr && <div className="sm-banner-err">⚠ {submitErr}</div>}
+
+      <div className="sm-grid">
+        <div className="sm-field">
+          <label className="sm-label">日期 <span className="sm-req">*</span></label>
+          <input type="date" className={"sm-input" + (errs.date ? " sm-err-input" : "")}
+            min={todayStr()} value={f.date} onChange={(e) => set("date", e.target.value)} />
+          {errs.date && <span className="sm-err">{errs.date}</span>}
+          {isClosed && !errs.date && <span className="sm-err">該日為公休日,無法訂位</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">時間 <span className="sm-req">*</span></label>
+          <select className={"sm-select" + (errs.time ? " sm-err-input" : "")}
+            value={f.time} onChange={(e) => set("time", e.target.value)} disabled={!f.date || isClosed}>
+            <option value="">{!f.date ? "請先選日期" : "請選擇時段"}</option>
+            {availableSlots.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {errs.time && <span className="sm-err">{errs.time}</span>}
+          {f.date && !isClosed && availableSlots.length === 0 &&
+            <span className="sm-err">本日已無可訂時段</span>}
+        </div>
+
+        <div className="sm-field">
+          <label className="sm-label">姓名 <span className="sm-req">*</span></label>
+          <input className={"sm-input" + (errs.name ? " sm-err-input" : "")}
+            placeholder="您的稱呼" value={f.name} onChange={(e) => set("name", e.target.value)} />
+          {errs.name && <span className="sm-err">{errs.name}</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">電話 <span className="sm-req">*</span></label>
+          <input className={"sm-input" + (errs.phone ? " sm-err-input" : "")}
+            placeholder="0912-345-678" value={f.phone} onChange={(e) => set("phone", e.target.value)} />
+          {errs.phone && <span className="sm-err">{errs.phone}</span>}
+        </div>
+
+        <div className="sm-field">
+          <label className="sm-label">用餐人數 <span className="sm-req">*</span></label>
+          <Stepper value={f.partySize} onChange={(v) => set("partySize", v)} min={1} max={20} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">Email <span className="sm-opt">(選填,用於寄送確認信)</span></label>
+          <input className={"sm-input" + (errs.email ? " sm-err-input" : "")}
+            placeholder="name@example.com" value={f.email} onChange={(e) => set("email", e.target.value)} />
+          {errs.email && <span className="sm-err">{errs.email}</span>}
+        </div>
+
+        <div className="sm-field">
+          <label className="sm-label">12 歲以下幼童 <span className="sm-opt">(選填)</span></label>
+          <Stepper value={f.children} onChange={(v) => set("children", v)} min={0} max={20} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">攜帶寵物 <span className="sm-opt">(選填)</span></label>
+          <Stepper value={f.pets} onChange={(v) => set("pets", v)} min={0} max={10} />
+        </div>
+
+        <div className="sm-field full">
+          <label className="sm-label">特殊備註 <span className="sm-opt">(選填)</span></label>
+          <textarea className="sm-textarea" placeholder="如:過敏原、慶生、嬰兒椅、輪椅需求等"
+            value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="sm-bar" />
+      <button className="sm-btn sm-btn-primary sm-btn-block" onClick={submit} disabled={submitting}>
+        {submitting ? "送出中…" : "送出訂位"}
+      </button>
+    </div>
+  );
+}
+
+/* ============================================================
+   後台 — 訂位卡片
+   ============================================================ */
+function ReservationCard({ res, settings, allRes, onUpdate, onReschedule }) {
+  const [staffNotes, setStaffNotes] = useState(res.staffNotes || "");
+  useEffect(() => { setStaffNotes(res.staffNotes || ""); }, [res.staffNotes]);
+
+  const occupiedTables = allRes
+    .filter((r) => r.status === "confirmed" && r.date === res.date && r.time === res.time
+      && r.id !== res.id && r.tableNumber)
+    .map((r) => r.tableNumber);
+  const conflict = res.tableNumber && occupiedTables.includes(res.tableNumber);
+
+  return (
+    <div className={"sm-res" + (res.status === "cancelled" ? " cancelled" : "")}>
+      <div className="sm-res-top">
+        <span className="sm-res-time">{res.time}</span>
+        <span className="sm-res-name">{res.name}</span>
+        <span className="sm-res-date">{fmtDate(res.date)}</span>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {res.source === "manual" && <span className="sm-badge sm-badge-gray">手動新增</span>}
+          {res.status === "cancelled"
+            ? <span className="sm-badge sm-badge-danger">已取消</span>
+            : res.tableNumber
+              ? <span className="sm-badge sm-badge-coffee">桌號 {res.tableNumber}</span>
+              : <span className="sm-badge sm-badge-gold">待排桌</span>}
+        </div>
+      </div>
+
+      <div className="sm-res-info">
+        <span>📞 <b>{res.phone}</b></span>
+        <span>👥 <b>{res.partySize}</b> 位</span>
+        {res.children > 0 && <span>幼童 <b>{res.children}</b></span>}
+        {res.pets > 0 && <span>🐾 寵物 <b>{res.pets}</b></span>}
+        {res.email && <span>✉️ {res.email}</span>}
+      </div>
+
+      {res.notes && <div className="sm-res-note"><span className="lbl">顧客備註</span>{res.notes}</div>}
+
+      <div className="sm-res-note" style={{ background: "#EDE3D0" }}>
+        <span className="lbl">員工備註</span>
+        <input className="sm-input" style={{ marginTop: 4, fontSize: 12.5, padding: "6px 9px" }}
+          placeholder="點此輸入內部備註,點擊他處即儲存…" value={staffNotes}
+          onChange={(e) => setStaffNotes(e.target.value)}
+          onBlur={() => { if (staffNotes !== (res.staffNotes || "")) onUpdate({ ...res, staffNotes }); }} />
+      </div>
+
+      {res.lastEditBy && (
+        <div className="sm-res-edit">最後異動:{res.lastEditBy}
+          {res.lastEditAt && " · " + shortTime(res.lastEditAt)}</div>
+      )}
+
+      {res.status !== "cancelled" && (
+        <div className="sm-res-actions">
+          <div className="sm-table-pick">
+            <span className="sm-hint">桌號</span>
+            <select className="sm-select" value={res.tableNumber || ""}
+              onChange={(e) => onUpdate({ ...res, tableNumber: e.target.value ? Number(e.target.value) : null })}>
+              <option value="">未指定</option>
+              {TABLES.map((t) => (
+                <option key={t} value={t}>
+                  {t} 桌{occupiedTables.includes(t) ? "(已用)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          {conflict && <span className="sm-mini-note">⚠ 此桌同時段重複</span>}
+          <button className="sm-btn sm-btn-ghost sm-btn-sm" onClick={() => onReschedule(res)}>改時間</button>
+          <button className="sm-btn sm-btn-danger sm-btn-sm"
+            onClick={() => { if (confirm(`確定取消「${res.name}」的訂位?`)) onUpdate({ ...res, status: "cancelled" }); }}>
+            取消訂位
+          </button>
+        </div>
+      )}
+      {res.status === "cancelled" && (
+        <div className="sm-res-actions">
+          <button className="sm-btn sm-btn-ghost sm-btn-sm"
+            onClick={() => onUpdate({ ...res, status: "confirmed" })}>復原訂位</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- 改時間 modal ---------- */
+function RescheduleModal({ res, settings, onClose, onSave }) {
+  const [date, setDate] = useState(res.date);
+  const [time, setTime] = useState(res.time);
+  const [saving, setSaving] = useState(false);
+  const slots = useMemo(() => genSlots(settings.businessHours), [settings]);
+  const closed = dateClosed(date, settings);
+
+  const save = async () => {
+    setSaving(true);
+    const ok = await onSave({ ...res, date, time });
+    setSaving(false);
+    if (!ok) alert("改期儲存失敗,請稍後再試");
+  };
+
+  return (
+    <Modal title={`改期 — ${res.name}`} onClose={onClose}>
+      <div className="sm-grid">
+        <div className="sm-field">
+          <label className="sm-label">新日期</label>
+          <input type="date" className="sm-input" min={todayStr()}
+            value={date} onChange={(e) => setDate(e.target.value)} />
+          {closed && <span className="sm-mini-note">⚠ 該日為公休日</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">新時間</label>
+          <select className="sm-select" value={time} onChange={(e) => setTime(e.target.value)}>
+            {slots.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="sm-bar" />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="sm-btn sm-btn-ghost" onClick={onClose}>取消</button>
+        <button className="sm-btn sm-btn-primary sm-btn-block" onClick={save} disabled={saving}>
+          {saving ? "儲存中…" : "儲存變更"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- 手動新增訂位 modal ---------- */
+function ManualAddModal({ settings, onClose, onAdd }) {
+  const [f, setF] = useState({
+    date: todayStr(), time: "", name: "", phone: "", partySize: 2,
+    email: "", children: 0, pets: 0, notes: "", staffNotes: "", tableNumber: null,
+  });
+  const [errs, setErrs] = useState({});
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const slots = useMemo(() => genSlots(settings.businessHours), [settings]);
+  const closed = f.date && dateClosed(f.date, settings);
+
+  const submit = async () => {
+    const e = validateBooking(f, settings, { hardClosed: false });
+    setErrs(e);
+    if (Object.keys(e).length) return;
+    const rec = {
+      id: newId(), ...f,
+      name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim(), notes: f.notes.trim(),
+      status: "confirmed", source: "manual", createdAt: new Date().toISOString(),
+      lastEditBy: "", lastEditAt: "",
+    };
+    setSaving(true);
+    const ok = await onAdd(rec);
+    setSaving(false);
+    if (!ok) alert("新增失敗,請稍後再試");
+  };
+
+  return (
+    <Modal title="手動新增訂位" onClose={onClose}>
+      <div className="sm-grid">
+        <div className="sm-field">
+          <label className="sm-label">日期 <span className="sm-req">*</span></label>
+          <input type="date" className={"sm-input" + (errs.date ? " sm-err-input" : "")}
+            min={todayStr()} value={f.date} onChange={(e) => set("date", e.target.value)} />
+          {errs.date && <span className="sm-err">{errs.date}</span>}
+          {closed && !errs.date && <span className="sm-mini-note">⚠ 公休日,如確認可照常新增</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">時間 <span className="sm-req">*</span></label>
+          <select className={"sm-select" + (errs.time ? " sm-err-input" : "")}
+            value={f.time} onChange={(e) => set("time", e.target.value)}>
+            <option value="">請選擇</option>
+            {slots.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {errs.time && <span className="sm-err">{errs.time}</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">姓名 <span className="sm-req">*</span></label>
+          <input className={"sm-input" + (errs.name ? " sm-err-input" : "")}
+            value={f.name} onChange={(e) => set("name", e.target.value)} />
+          {errs.name && <span className="sm-err">{errs.name}</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">電話 <span className="sm-req">*</span></label>
+          <input className={"sm-input" + (errs.phone ? " sm-err-input" : "")}
+            value={f.phone} onChange={(e) => set("phone", e.target.value)} />
+          {errs.phone && <span className="sm-err">{errs.phone}</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">人數 <span className="sm-req">*</span></label>
+          <Stepper value={f.partySize} onChange={(v) => set("partySize", v)} min={1} max={20} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">桌號 <span className="sm-opt">(可先排桌)</span></label>
+          <select className="sm-select" value={f.tableNumber || ""}
+            onChange={(e) => set("tableNumber", e.target.value ? Number(e.target.value) : null)}>
+            <option value="">未指定</option>
+            {TABLES.map((t) => <option key={t} value={t}>{t} 桌</option>)}
+          </select>
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">12 歲以下幼童</label>
+          <Stepper value={f.children} onChange={(v) => set("children", v)} min={0} max={20} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">攜帶寵物</label>
+          <Stepper value={f.pets} onChange={(v) => set("pets", v)} min={0} max={10} />
+        </div>
+        <div className="sm-field full">
+          <label className="sm-label">Email <span className="sm-opt">(選填)</span></label>
+          <input className={"sm-input" + (errs.email ? " sm-err-input" : "")}
+            value={f.email} onChange={(e) => set("email", e.target.value)} />
+          {errs.email && <span className="sm-err">{errs.email}</span>}
+        </div>
+        <div className="sm-field full">
+          <label className="sm-label">顧客備註 <span className="sm-opt">(選填)</span></label>
+          <textarea className="sm-textarea" value={f.notes} onChange={(e) => set("notes", e.target.value)} />
+        </div>
+        <div className="sm-field full">
+          <label className="sm-label">員工備註 <span className="sm-opt">(選填)</span></label>
+          <textarea className="sm-textarea" value={f.staffNotes}
+            onChange={(e) => set("staffNotes", e.target.value)} />
+        </div>
+      </div>
+      <div className="sm-bar" />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="sm-btn sm-btn-ghost" onClick={onClose}>取消</button>
+        <button className="sm-btn sm-btn-primary sm-btn-block" onClick={submit} disabled={saving}>
+          {saving ? "新增中…" : "新增訂位"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- 訂位清單 ---------- */
+function ReservationList({ reservations, settings, onUpdate }) {
+  const [filterDate, setFilterDate] = useState(todayStr());
+  const [showAll, setShowAll] = useState(false);
+  const [search, setSearch] = useState("");
+  const [reschedule, setReschedule] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const filtered = useMemo(() => {
+    let list = reservations;
+    if (!showAll) list = list.filter((r) => r.date === filterDate);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((r) => r.name.toLowerCase().includes(q) || r.phone.includes(q));
+    }
+    return [...list].sort((a, b) => {
+      if (a.status !== b.status) return a.status === "cancelled" ? 1 : -1;
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return a.time < b.time ? -1 : 1;
+    });
+  }, [reservations, filterDate, showAll, search]);
+
+  const active = filtered.filter((r) => r.status === "confirmed");
+  const stats = {
+    groups: active.length,
+    guests: active.reduce((s, r) => s + Number(r.partySize), 0),
+    children: active.reduce((s, r) => s + Number(r.children), 0),
+    pets: active.reduce((s, r) => s + Number(r.pets), 0),
+  };
+  const busyTables = active.filter((r) => r.tableNumber).map((r) => r.tableNumber);
+
+  return (
+    <div className="sm-card">
+      <h2 className="sm-sec-title">📋 訂位清單</h2>
+      <p className="sm-sec-sub">可指派桌號(1–16)、改期、取消,或手動新增訂位</p>
+
+      <div className="sm-filters">
+        <div className="sm-field">
+          <label className="sm-label">查詢日期</label>
+          <input type="date" className="sm-input" value={filterDate}
+            disabled={showAll} onChange={(e) => setFilterDate(e.target.value)} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">姓名 / 電話</label>
+          <input className="sm-input" placeholder="搜尋…" value={search}
+            onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <button className={"sm-btn sm-btn-sm " + (showAll ? "sm-btn-accent" : "sm-btn-ghost")}
+          onClick={() => setShowAll((v) => !v)}>{showAll ? "✓ 顯示全部" : "顯示全部"}</button>
+        <button className="sm-btn sm-btn-primary sm-btn-sm" onClick={() => setShowAdd(true)}>＋ 手動新增</button>
+      </div>
+
+      <div className="sm-stats">
+        <div className="sm-stat"><b>{stats.groups}</b><span>訂位組數</span></div>
+        <div className="sm-stat"><b>{stats.guests}</b><span>總人數</span></div>
+        <div className="sm-stat"><b>{stats.children}</b><span>幼童</span></div>
+        <div className="sm-stat"><b>{stats.pets}</b><span>寵物</span></div>
+      </div>
+
+      {!showAll && (
+        <div style={{ marginBottom: 16 }}>
+          <span className="sm-hint" style={{ fontWeight: 700 }}>
+            {fmtDate(filterDate)} 桌況　
+            <span style={{ color: "var(--coffee)" }}>■</span> 已訂　
+            <span style={{ color: "var(--border-strong)" }}>□</span> 空桌
+          </span>
+          <div className="sm-tgrid">
+            {TABLES.map((t) => (
+              <div key={t} className={"sm-tcell" + (busyTables.includes(t) ? " busy" : "")}>{t}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="sm-empty"><div className="ic">🍽️</div>此條件下沒有訂位資料</div>
+      ) : (
+        filtered.map((r) => (
+          <ReservationCard key={r.id} res={r} settings={settings} allRes={reservations}
+            onUpdate={onUpdate} onReschedule={setReschedule} />
+        ))
+      )}
+
+      {reschedule && (
+        <RescheduleModal res={reschedule} settings={settings} onClose={() => setReschedule(null)}
+          onSave={async (updated) => {
+            const ok = await onUpdate(updated);
+            if (ok) setReschedule(null);
+            return ok;
+          }} />
+      )}
+      {showAdd && (
+        <ManualAddModal settings={settings} onClose={() => setShowAdd(false)}
+          onAdd={async (rec) => {
+            const ok = await onUpdate(rec, true);
+            if (ok) setShowAdd(false);
+            return ok;
+          }} />
+      )}
+    </div>
+  );
+}
+
+/* ---------- 營運設定 ---------- */
+function SettingsPanel({ settings, onChange }) {
+  const [newClosed, setNewClosed] = useState("");
+  const bh = settings.businessHours;
+  const setBH = (k, v) => onChange({ ...settings, businessHours: { ...bh, [k]: v } });
+
+  const addClosed = () => {
+    if (!newClosed || settings.closedDates.includes(newClosed)) return;
+    onChange({ ...settings, closedDates: [...settings.closedDates, newClosed].sort() });
+    setNewClosed("");
+  };
+  const removeClosed = (d) =>
+    onChange({ ...settings, closedDates: settings.closedDates.filter((x) => x !== d) });
+  const toggleWeekday = (i) => {
+    const has = settings.weeklyClosedDays.includes(i);
+    onChange({
+      ...settings,
+      weeklyClosedDays: has
+        ? settings.weeklyClosedDays.filter((x) => x !== i)
+        : [...settings.weeklyClosedDays, i],
+    });
+  };
+
+  return (
+    <div className="sm-card">
+      <h2 className="sm-sec-title">⚙️ 營運設定</h2>
+      <p className="sm-sec-sub">設定營業時間與公休日,前台將自動套用(公休日與非營業時段無法訂位)</p>
+
+      <h3 style={{ fontSize: 14, marginBottom: 10, color: "var(--coffee)" }}>營業時間</h3>
+      <div className="sm-grid">
+        <div className="sm-field">
+          <label className="sm-label">開始營業</label>
+          <input type="time" className="sm-input" value={bh.open}
+            onChange={(e) => setBH("open", e.target.value)} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">結束營業</label>
+          <input type="time" className="sm-input" value={bh.close}
+            onChange={(e) => setBH("close", e.target.value)} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">訂位時段間隔</label>
+          <select className="sm-select" value={bh.slotMinutes}
+            onChange={(e) => setBH("slotMinutes", Number(e.target.value))}>
+            <option value={15}>每 15 分鐘</option>
+            <option value={30}>每 30 分鐘</option>
+            <option value={60}>每 60 分鐘</option>
+          </select>
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">最後訂位(閉店前)</label>
+          <select className="sm-select" value={bh.lastBeforeClose}
+            onChange={(e) => setBH("lastBeforeClose", Number(e.target.value))}>
+            <option value={0}>至閉店時間</option>
+            <option value={30}>閉店前 30 分鐘</option>
+            <option value={60}>閉店前 1 小時</option>
+            <option value={90}>閉店前 1.5 小時</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="sm-bar" />
+
+      <h3 style={{ fontSize: 14, marginBottom: 4, color: "var(--coffee)" }}>每週固定公休</h3>
+      <p className="sm-hint" style={{ marginBottom: 10 }}>點選每週固定不營業的星期</p>
+      <div className="sm-weekdays">
+        {WD.map((d, i) => (
+          <button key={i} className={"sm-wd" + (settings.weeklyClosedDays.includes(i) ? " on" : "")}
+            onClick={() => toggleWeekday(i)}>{d}</button>
+        ))}
+      </div>
+
+      <div className="sm-bar" />
+
+      <h3 style={{ fontSize: 14, marginBottom: 4, color: "var(--coffee)" }}>特定公休日期</h3>
+      <p className="sm-hint" style={{ marginBottom: 10 }}>新增國定假日、員工旅遊、店休等特定日期</p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <input type="date" className="sm-input" style={{ width: "auto" }} min={todayStr()}
+          value={newClosed} onChange={(e) => setNewClosed(e.target.value)} />
+        <button className="sm-btn sm-btn-accent sm-btn-sm" onClick={addClosed}>＋ 新增公休日</button>
+      </div>
+      {settings.closedDates.length === 0 ? (
+        <p className="sm-hint">尚未設定特定公休日</p>
+      ) : (
+        <div className="sm-chips">
+          {settings.closedDates.map((d) => (
+            <span key={d} className="sm-chip">
+              {fmtDate(d)}
+              <button onClick={() => removeClosed(d)}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- 員工帳號:新增 / 編輯 modal ---------- */
+function StaffEditModal({ staff, currentUser, onClose, onSave }) {
+  const isEdit = !!staff;
+  const [f, setF] = useState({
+    username: staff ? staff.username : "",
+    displayName: staff ? staff.displayName : "",
+    role: staff ? staff.role : "staff",
+    active: staff ? staff.active : true,
+    password: "",
+  });
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const isSelf = isEdit && staff.username.toLowerCase() === currentUser.username.toLowerCase();
+
+  const submit = async () => {
+    setErr("");
+    if (!isEdit) {
+      if (!/^[a-zA-Z0-9_.]{3,20}$/.test(f.username))
+        return setErr("帳號限 3-20 字,僅可用英數字、底線、句點");
+      if (f.password.length < 6) return setErr("新帳號密碼至少 6 個字");
+    }
+    if (!f.displayName.trim()) return setErr("請填寫顯示名稱");
+    if (isEdit && f.password && f.password.length < 6) return setErr("密碼至少 6 個字");
+    setSaving(true);
+    try {
+      await onSave({
+        username: f.username.trim(),
+        displayName: f.displayName.trim(),
+        role: f.role,
+        active: f.active,
+        password: f.password || undefined,
+      });
+    } catch (e) {
+      setErr(String(e.message || e));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={isEdit ? `編輯帳號 — ${staff.displayName}` : "新增員工帳號"} onClose={onClose}>
+      {err && <div className="sm-banner-err">⚠ {err}</div>}
+      <div className="sm-grid">
+        <div className="sm-field">
+          <label className="sm-label">帳號 <span className="sm-req">*</span></label>
+          <input className="sm-input" value={f.username} disabled={isEdit}
+            placeholder="英文/數字,例:amy" onChange={(e) => set("username", e.target.value)} />
+          {isEdit && <span className="sm-hint">帳號建立後不可修改</span>}
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">顯示名稱 <span className="sm-req">*</span></label>
+          <input className="sm-input" value={f.displayName}
+            placeholder="例:陳小美" onChange={(e) => set("displayName", e.target.value)} />
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">角色</label>
+          <select className="sm-select" value={f.role} onChange={(e) => set("role", e.target.value)}>
+            <option value="staff">一般員工</option>
+            <option value="manager">店長(可管理帳號)</option>
+          </select>
+        </div>
+        <div className="sm-field">
+          <label className="sm-label">帳號狀態</label>
+          <select className="sm-select" value={f.active ? "1" : "0"}
+            disabled={isSelf}
+            onChange={(e) => set("active", e.target.value === "1")}>
+            <option value="1">啟用</option>
+            <option value="0">停用(無法登入)</option>
+          </select>
+          {isSelf && <span className="sm-hint">無法停用自己的帳號</span>}
+        </div>
+        <div className="sm-field full">
+          <label className="sm-label">
+            {isEdit ? "重設密碼 " : "密碼 "}
+            {isEdit
+              ? <span className="sm-opt">(留空表示不變更)</span>
+              : <span className="sm-req">*</span>}
+          </label>
+          <input className="sm-input" type="password" value={f.password}
+            placeholder={isEdit ? "如需重設才填寫" : "至少 6 個字"}
+            onChange={(e) => set("password", e.target.value)} />
+        </div>
+      </div>
+      <div className="sm-bar" />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="sm-btn sm-btn-ghost" onClick={onClose}>取消</button>
+        <button className="sm-btn sm-btn-primary sm-btn-block" onClick={submit} disabled={saving}>
+          {saving ? "儲存中…" : (isEdit ? "儲存變更" : "建立帳號")}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- 員工帳號管理(僅店長可見) ---------- */
+function StaffPanel({ token, currentUser }) {
+  const [list, setList] = useState(null);
+  const [err, setErr] = useState("");
+  const [editing, setEditing] = useState(undefined); // undefined=關閉, null=新增, obj=編輯
+
+  const reload = useCallback(async () => {
+    setErr("");
+    try {
+      const staff = await dataLayer.listStaff(token);
+      setList(staff);
+    } catch (e) {
+      setErr(String(e.message || e));
+      setList([]);
+    }
+  }, [token]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const save = async (staffObj) => {
+    await dataLayer.saveStaff(staffObj, token);
+    setEditing(undefined);
+    await reload();
+  };
+
+  return (
+    <div className="sm-card">
+      <h2 className="sm-sec-title">👥 員工帳號</h2>
+      <p className="sm-sec-sub">建立、停用員工帳號或重設密碼。店長角色可管理帳號,一般員工僅能操作訂位。</p>
+
+      {err && <div className="sm-banner-err">⚠ {err}</div>}
+
+      <button className="sm-btn sm-btn-primary sm-btn-sm" style={{ marginBottom: 16 }}
+        onClick={() => setEditing(null)}>＋ 新增員工帳號</button>
+
+      {list === null ? (
+        <div className="sm-empty"><div className="ic">⏳</div>載入中…</div>
+      ) : list.length === 0 ? (
+        <div className="sm-empty"><div className="ic">👤</div>尚無員工帳號</div>
+      ) : (
+        list.map((s) => (
+          <div key={s.username} className={"sm-staff-row" + (s.active ? "" : " off")}>
+            <div>
+              <div className="sm-staff-name">
+                {s.displayName}
+                {s.username.toLowerCase() === currentUser.username.toLowerCase() &&
+                  <span className="sm-hint"> (目前登入)</span>}
+              </div>
+              <div className="sm-staff-user">@{s.username}</div>
+            </div>
+            <span className={"sm-badge " + (s.role === "manager" ? "sm-badge-accent" : "sm-badge-gray")}>
+              {s.role === "manager" ? "店長" : "一般員工"}
+            </span>
+            {!s.active && <span className="sm-badge sm-badge-danger">已停用</span>}
+            <div className="acts">
+              <button className="sm-btn sm-btn-ghost sm-btn-sm" onClick={() => setEditing(s)}>
+                編輯
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+
+      {editing !== undefined && (
+        <StaffEditModal staff={editing} currentUser={currentUser}
+          onClose={() => setEditing(undefined)} onSave={save} />
+      )}
+    </div>
+  );
+}
+
+/* ---------- 修改自己的密碼 modal ---------- */
+function ChangePasswordModal({ token, onClose, onChanged }) {
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setErr("");
+    if (newPw.length < 6) return setErr("新密碼至少 6 個字");
+    if (newPw !== confirm) return setErr("兩次輸入的新密碼不一致");
+    setSaving(true);
+    try {
+      const newToken = await dataLayer.changePassword(token, oldPw, newPw);
+      onChanged(newToken);
+    } catch (e) {
+      setErr(String(e.message || e));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title="修改密碼" onClose={onClose}>
+      {err && <div className="sm-banner-err">⚠ {err}</div>}
+      <div className="sm-field" style={{ marginBottom: 12 }}>
+        <label className="sm-label">目前密碼</label>
+        <input className="sm-input" type="password" value={oldPw}
+          onChange={(e) => setOldPw(e.target.value)} />
+      </div>
+      <div className="sm-field" style={{ marginBottom: 12 }}>
+        <label className="sm-label">新密碼</label>
+        <input className="sm-input" type="password" value={newPw}
+          placeholder="至少 6 個字" onChange={(e) => setNewPw(e.target.value)} />
+      </div>
+      <div className="sm-field">
+        <label className="sm-label">再次輸入新密碼</label>
+        <input className="sm-input" type="password" value={confirm}
+          onChange={(e) => setConfirm(e.target.value)} />
+      </div>
+      <div className="sm-bar" />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="sm-btn sm-btn-ghost" onClick={onClose}>取消</button>
+        <button className="sm-btn sm-btn-primary sm-btn-block" onClick={submit} disabled={saving}>
+          {saving ? "更新中…" : "更新密碼"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- 登入畫面 ---------- */
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!username.trim() || !password) { setErr("請輸入帳號與密碼"); return; }
+    setErr("");
+    setBusy(true);
+    try {
+      await onLogin(username.trim(), password);
+    } catch (e) {
+      setErr(String(e.message || e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="sm-card sm-login">
+      <div className="sm-login-logo"><img src={LOGO} alt="三毛咖啡 寵物咖啡" /></div>
+      <h2>後台管理登入</h2>
+      <p className="sub">請使用員工帳號登入</p>
+
+      {err && <div className="sm-banner-err">⚠ {err}</div>}
+
+      <div className="sm-field" style={{ marginBottom: 12 }}>
+        <label className="sm-label">帳號</label>
+        <input className="sm-input" value={username} autoFocus
+          onChange={(e) => setUsername(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()} />
+      </div>
+      <div className="sm-field" style={{ marginBottom: 18 }}>
+        <label className="sm-label">密碼</label>
+        <input className="sm-input" type="password" value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submit()} />
+      </div>
+      <button className="sm-btn sm-btn-primary sm-btn-block" onClick={submit} disabled={busy}>
+        {busy ? "登入中…" : "登入"}
+      </button>
+      {!API_READY && (
+        <p className="sm-hint" style={{ textAlign: "center", marginTop: 14 }}>
+          預覽模式測試帳號:admin / admin1234
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ---------- 後台主框架 ---------- */
+function BackOffice({ reservations, settings, staff, token, onUpdateRes, onUpdateSettings }) {
+  const [tab, setTab] = useState("list");
+  const isManager = staff.role === "manager";
+
+  return (
+    <div>
+      <div className="sm-tabs">
+        <button className={"sm-tab" + (tab === "list" ? " on" : "")} onClick={() => setTab("list")}>
+          訂位清單
+        </button>
+        <button className={"sm-tab" + (tab === "settings" ? " on" : "")} onClick={() => setTab("settings")}>
+          營運設定
+        </button>
+        {isManager && (
+          <button className={"sm-tab" + (tab === "staff" ? " on" : "")} onClick={() => setTab("staff")}>
+            員工帳號
+          </button>
+        )}
+      </div>
+      {tab === "list" &&
+        <ReservationList reservations={reservations} settings={settings} onUpdate={onUpdateRes} />}
+      {tab === "settings" &&
+        <SettingsPanel settings={settings} onChange={onUpdateSettings} />}
+      {tab === "staff" && isManager &&
+        <StaffPanel token={token} currentUser={staff} />}
+    </div>
+  );
+}
+
+/* ---------- 同步狀態列 ---------- */
+function SyncBar({ sync, lastSync, onRefresh }) {
+  const label = {
+    idle: dataLayer.mode === "api" ? "已連線雲端,資料即時同步" : "本機預覽模式(資料僅存於此瀏覽器)",
+    saving: "儲存中…",
+    error: "上次同步失敗,請按重新整理",
+    loading: "載入中…",
+  }[sync];
+  const dotClass = sync === "saving" ? "saving" : sync === "error" ? "error"
+    : dataLayer.mode === "api" ? "idle" : "local";
+  return (
+    <div className="sm-syncbar">
+      <span className={"sm-dot " + dotClass}></span>
+      <span>{label}</span>
+      {lastSync && sync === "idle" &&
+        <span style={{ opacity: .7 }}>· 最後更新 {lastSync}</span>}
+      {dataLayer.mode === "api" && (
+        <button className="sm-sync-refresh" onClick={onRefresh} disabled={sync === "loading"}>
+          ↻ 重新整理
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   App
+   ============================================================ */
+function App() {
+  const [view, setView] = useState("front");
+  const [reservations, setReservations] = useState([]);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [sync, setSync] = useState("loading");
+  const [lastSync, setLastSync] = useState("");
+  const [loadError, setLoadError] = useState("");
+
+  // 登入狀態
+  const [staff, setStaff] = useState(null);
+  const [token, setToken] = useState("");
+  const [showChangePw, setShowChangePw] = useState(false);
+
+  const stamp = () => {
+    const n = new Date();
+    setLastSync(`${String(n.getHours()).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}`);
+  };
+
+  // 公開載入(僅設定)
+  const loadPublic = useCallback(async () => {
+    try {
+      const data = await dataLayer.loadPublic();
+      setSettings(data.settings);
+      setLoadError("");
+      setSync("idle");
+      stamp();
+    } catch (e) {
+      setLoadError(String(e.message || e));
+      setSync("error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 登入後載入(訂位 + 設定)
+  const loadSecure = useCallback(async (tk, opts) => {
+    opts = opts || {};
+    try {
+      const data = await dataLayer.loadSecure(tk);
+      setReservations(data.reservations || []);
+      setSettings(data.settings);
+      if (data.staff) setStaff(data.staff);
+      setLoadError("");
+      setSync("idle");
+      stamp();
+      return true;
+    } catch (e) {
+      if (opts.silent) {
+        setSync("error");
+      } else {
+        setLoadError(String(e.message || e));
+        setSync("error");
+      }
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 啟動:還原登入狀態
+  useEffect(() => {
+    const raw = sessionStore.get(K_SESSION);
+    if (raw) {
+      try {
+        const sess = JSON.parse(raw);
+        if (sess && sess.token && sess.staff) {
+          setStaff(sess.staff);
+          setToken(sess.token);
+          loadSecure(sess.token).then((ok) => {
+            if (!ok) {
+              // 權杖失效 → 清除並改為公開模式
+              sessionStore.del(K_SESSION);
+              setStaff(null);
+              setToken("");
+              loadPublic();
+            }
+          });
+          return;
+        }
+      } catch (e) {/* 略 */}
+    }
+    loadPublic();
+  }, [loadPublic, loadSecure]);
+
+  // 雲端模式:登入後每 30 秒自動同步
+  useEffect(() => {
+    if (!API_READY || !token) return;
+    const t = setInterval(() => {
+      loadSecure(token, { silent: true }).then((ok) => {
+        if (!ok) {
+          // 自動同步失敗(可能權杖失效)→ 登出
+          sessionStore.del(K_SESSION);
+          setStaff(null);
+          setToken("");
+        }
+      });
+    }, 30000);
+    return () => clearInterval(t);
+  }, [token, loadSecure]);
+
+  // 登入
+  const handleLogin = async (username, password) => {
+    const { staff: s, token: tk } = await dataLayer.login(username, password);
+    setStaff(s);
+    setToken(tk);
+    sessionStore.set(K_SESSION, JSON.stringify({ staff: s, token: tk }));
+    setSync("loading");
+    await loadSecure(tk);
+  };
+
+  // 登出
+  const handleLogout = () => {
+    sessionStore.del(K_SESSION);
+    setStaff(null);
+    setToken("");
+    setReservations([]);
+    loadPublic();
+  };
+
+  // 密碼變更後更新權杖
+  const handlePwChanged = (newToken) => {
+    setToken(newToken);
+    sessionStore.set(K_SESSION, JSON.stringify({ staff, token: newToken }));
+    setShowChangePw(false);
+    alert("密碼已更新");
+  };
+
+  // 顧客線上訂位(無需登入)
+  const addReservation = async (rec) => {
+    const prev = reservations;
+    const next = [...prev, rec];
+    setReservations(next);
+    setSync("saving");
+    try {
+      await dataLayer.addReservation(rec, "", next);
+      setSync("idle");
+      return true;
+    } catch (e) {
+      setReservations(prev);
+      setSync("error");
+      console.error(e);
+      return false;
+    }
+  };
+
+  // 後台:更新訂位 / 手動新增(isNew=true)
+  const updateReservation = async (rec, isNew = false) => {
+    const prev = reservations;
+    const next = isNew ? [...prev, rec] : prev.map((r) => (r.id === rec.id ? rec : r));
+    setReservations(next);
+    setSync("saving");
+    try {
+      if (isNew) await dataLayer.addReservation(rec, token, next);
+      else await dataLayer.updateReservation(rec, token, next);
+      setSync("idle");
+      return true;
+    } catch (e) {
+      setReservations(prev);
+      setSync("error");
+      alert("操作失敗:" + (e.message || e));
+      return false;
+    }
+  };
+
+  const updateSettings = async (s) => {
+    const prev = settings;
+    setSettings(s);
+    setSync("saving");
+    try {
+      await dataLayer.saveSettings(s, token);
+      setSync("idle");
+      return true;
+    } catch (e) {
+      setSettings(prev);
+      setSync("error");
+      alert("營運設定儲存失敗:" + (e.message || e));
+      return false;
+    }
+  };
+
+  const loggedIn = !!staff;
+
+  return (
+    <div className="sm-app">
+      <style>{CSS}</style>
+      <div className="sm-wrap">
+        <div className="sm-head">
+          <div className="sm-logo"><img src={LOGO} alt="三毛咖啡 寵物咖啡" /></div>
+          <span className="sm-sysname">訂位系統</span>
+          <div className="sm-toggle">
+            <button className={view === "front" ? "on" : ""} onClick={() => setView("front")}>
+              前台訂位
+            </button>
+            <button className={view === "back" ? "on" : ""} onClick={() => setView("back")}>
+              後台管理
+            </button>
+          </div>
+        </div>
+
+        <SyncBar sync={sync} lastSync={lastSync}
+          onRefresh={() => (loggedIn ? loadSecure(token) : loadPublic())} />
+
+        {/* 後台已登入:顯示員工資訊列 */}
+        {view === "back" && loggedIn && (
+          <div className="sm-staffbar">
+            <span className="who">
+              👤 {staff.displayName}
+              <span className="role">{staff.role === "manager" ? "店長" : "一般員工"}</span>
+            </span>
+            <div className="acts">
+              <button onClick={() => setShowChangePw(true)}>修改密碼</button>
+              <button onClick={handleLogout}>登出</button>
+            </div>
+          </div>
+        )}
+
+        {loadError && (
+          <div className="sm-banner-err">
+            ⚠ 連線問題:{loadError}
+            <br />請確認 API_URL 是否正確、Apps Script 是否已部署為「任何人」可存取。
+          </div>
+        )}
+
+        {loading ? (
+          <div className="sm-card"><div className="sm-empty"><div className="ic">⏳</div>載入中…</div></div>
+        ) : view === "front" ? (
+          <FrontDesk settings={settings} onSubmit={addReservation} />
+        ) : !loggedIn ? (
+          <LoginScreen onLogin={handleLogin} />
+        ) : (
+          <>
+            {!API_READY && (
+              <div className="sm-notice">
+                💡 目前為本機預覽模式。將程式碼頂端的 <b>API_URL</b> 換成你的 Apps Script
+                網址後,即切換為多人共用的雲端模式。
+              </div>
+            )}
+            <BackOffice
+              reservations={reservations} settings={settings}
+              staff={staff} token={token}
+              onUpdateRes={updateReservation} onUpdateSettings={updateSettings}
+            />
+          </>
+        )}
+
+        {showChangePw && (
+          <ChangePasswordModal token={token}
+            onClose={() => setShowChangePw(false)} onChanged={handlePwChanged} />
+        )}
+
+        <div className="sm-foot">三毛咖啡訂位系統 · 前台與後台共用同一份雲端訂位資料</div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
